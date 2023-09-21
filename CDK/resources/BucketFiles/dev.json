@@ -1,0 +1,45 @@
+{
+    "config": {
+      "chainId": 1337,
+      "berlinBlock": 0,
+      "ethash": {
+        "fixeddifficulty": 100
+      }
+    },
+    "nonce": "0x42",
+    "timestamp": "0x0",
+    "gasLimit": "0x1000000",
+    "difficulty": "0x10000",
+    "alloc": {
+      "bc477F8Aa5BDdF2cAB1216Dd3B341718DeC3af6F": {
+        "balance": "0xad78ebc5ac6200000"
+      },
+      "1e6EF65FE43715a509b1947630e33910247660D2": {
+        "balance": "0xad78ebc5ac6200000"
+      },
+      "f352aebb355169925AB4F132BA77f98876cac36D": {
+        "balance": "0xad78ebc5ac6200000"
+      },
+      "8b3738e553439eb88e7B0DdD3d5FBdE4305Ea96D": {
+        "balance": "0xad78ebc5ac6200000"
+      },
+      "62845D3F43942Fb141BCAf66b3C4eC79Cc5D3950": {
+        "balance": "0xad78ebc5ac6200000"
+      },
+      "5d1Cf9619C109d4521f98C82A772CdC18E8BDa1c": {
+        "balance": "0xad78ebc5ac6200000"
+      },
+      "543506d1f2b456E7000b7459345f06CA67baf2f1": {
+        "balance": "0xad78ebc5ac6200000"
+      },
+      "AD24eFBC15Fb2846E5a423a886539E4eA4Ee4220": {
+        "balance": "0xad78ebc5ac6200000"
+      },
+      "36eb4EDD026027Ff052C42c904B4a6cD56076E99": {
+        "balance": "0xad78ebc5ac6200000"
+      },
+      "569519A3C71CC3428a8a5B402A568430609E3e03": {
+        "balance": "0xad78ebc5ac6200000"
+      }
+    }
+}
