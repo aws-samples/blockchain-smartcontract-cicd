@@ -105,3 +105,12 @@ cdk deploy
 
 6. Update Secret Manager
 When CDK stack is deployed, it will create the entire CI/CD infrastructure and start the CI/CD pipeline. The pipleline will compile and deploy the smart contract on Hyperledger Besu and will enter into a stage where it will wait for manual approval to move to Goerli deployment stage. Before manually approving, make sure AMB Billing token url and mnemonics related to accounts in Goerli network are entered into the secret manager. 
+
+## Clean up
+
+1. clean the resources created by this repository by running the command
+
+```console
+cdk destroy
+```
+2. Go to the Cloudformation console and delete the stack with the name “AMB-CICD-Blog-Stack”.
