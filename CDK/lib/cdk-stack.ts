@@ -31,6 +31,15 @@ export class CdkStack extends cdk.Stack {
     let account = this.account;
     let region = this.region;
 
+    let getUUID = () => {
+      let d = new Date().getTime();
+      const guid = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+        const r = (d + Math.random() * 16) % 16 | 0;
+        d = Math.floor(d / 16);
+        return (c === "x" ? r : (r & 0x3 | 0x8)).toString(16);
+      });
+      return guid;
+    }
     /************************ VPC Creation ********************/
     let vpc = new ec2.Vpc(this, 'AMB-CICD-Blog-VPC', {
       vpcName: "AMB-CICD-Blog-VPC",
@@ -47,8 +56,8 @@ export class CdkStack extends cdk.Stack {
       ]
     });
 
-    let publicSubnetArn1=`arn:aws:ec2:${region}:${account}:subnet/${vpc.publicSubnets[0].subnetId}`;
-    let publicSubnetArn2=`arn:aws:ec2:${region}:${account}:subnet/${vpc.publicSubnets[1].subnetId}`;
+    let publicSubnetArn1 = `arn:aws:ec2:${region}:${account}:subnet/${vpc.publicSubnets[0].subnetId}`;
+    let publicSubnetArn2 = `arn:aws:ec2:${region}:${account}:subnet/${vpc.publicSubnets[1].subnetId}`;
 
     /************************ Security Group ********************/
     let secGroup = new ec2.SecurityGroup(this, 'AMB-CICD-Blog-SecGroup', {
@@ -59,7 +68,7 @@ export class CdkStack extends cdk.Stack {
     });
     secGroup.addIngressRule(ec2.Peer.anyIpv4(), ec2.Port.tcp(8545), 'All Ethreum HTTP RPC Traffic');
     secGroup.addIngressRule(secGroup, ec2.Port.allTraffic(), 'Allow all traffic associated with this security group');
-    let securityGroupArn=`arn:aws:ec2:${region}:${account}:security-group/${secGroup.securityGroupId}`;
+    let securityGroupArn = `arn:aws:ec2:${region}:${account}:security-group/${secGroup.securityGroupId}`;
 
     /************************ IAM Policies & Role ********************/
     //DynamoDb Read/Write access for Lambda
@@ -100,7 +109,7 @@ export class CdkStack extends cdk.Stack {
     });
 
     //codecommit access for lambda policy
-    let gitLambdaAccessPolicy=new iam.ManagedPolicy(this, "AMB-CICD-Blog-GitLambdaAccessPolicy", {
+    let gitLambdaAccessPolicy = new iam.ManagedPolicy(this, "AMB-CICD-Blog-GitLambdaAccessPolicy", {
       managedPolicyName: "AMB-CICD-Blog-GitLambdaAccessPolicy",
       statements: [new iam.PolicyStatement({
         sid: "AMBCICDBlogPolicy3",
@@ -164,7 +173,7 @@ export class CdkStack extends cdk.Stack {
     //CodePipelinePolicies
     let codePipelinePolicies = new iam.ManagedPolicy(this, "AMB-CICD-Blog-CodePipelinePolicies", {
       managedPolicyName: "AMB-CICD-Blog-CodePipelinePolicies",
-      statements:[
+      statements: [
         new iam.PolicyStatement({
           sid: "AMBCICDBlogPolicy4",
           actions: [
@@ -223,7 +232,7 @@ export class CdkStack extends cdk.Stack {
       roleName: "AMB-CICD-Blog-CodePipelineSvcRole",
       assumedBy: new iam.ServicePrincipal("codepipeline.amazonaws.com"),
       description: "This role will be assume by CodePipeline to implement smart contract build as part of CI/CD",
-      managedPolicies: [codePipelinePolicies,codeBuildSrvRolePol]
+      managedPolicies: [codePipelinePolicies, codeBuildSrvRolePol]
     });
     //CodeBuildServiceRole
     let codeBuildSrvRole = new iam.Role(this, "AMB-CICD-Blog-CodeBuildSvcRole", {
@@ -345,8 +354,9 @@ export class CdkStack extends cdk.Stack {
     });
     custRsrcEfsMgmtLambdaExec.node.addDependency(elasticFileSys);
     /************************ S3 Bucket and supporting files for the CI/CD solution ********************/
+
     let cicdBucket = new s3.Bucket(this, "AMB-CICD-Blog-S3Bucket", {
-      bucketName: "amb-cicd-blog-s3bucket",
+      bucketName: "amb-cicd-blog-s3bucket" + getUUID(),
       removalPolicy: cdk.RemovalPolicy.DESTROY,
       autoDeleteObjects: true,
       versioned: true
@@ -366,46 +376,46 @@ export class CdkStack extends cdk.Stack {
     });
     s3Location.node.addDependency(cicdBucket);
 
-    let efsLocation=new datasync.CfnLocationEFS(this, "AMB-CICD-Blog-EFSLocation", {
+    let efsLocation = new datasync.CfnLocationEFS(this, "AMB-CICD-Blog-EFSLocation", {
       ec2Config: {
         subnetArn: publicSubnetArn1,
-        securityGroupArns:[securityGroupArn]
+        securityGroupArns: [securityGroupArn]
       },
-      accessPointArn:efsBesuDirAccessPoint.accessPointArn,
-      efsFilesystemArn:elasticFileSys.fileSystemArn,
-      fileSystemAccessRoleArn:dataSyncTransferRole.roleArn,
-      inTransitEncryption:"TLS1_2",
+      accessPointArn: efsBesuDirAccessPoint.accessPointArn,
+      efsFilesystemArn: elasticFileSys.fileSystemArn,
+      fileSystemAccessRoleArn: dataSyncTransferRole.roleArn,
+      inTransitEncryption: "TLS1_2",
       subdirectory: "config"
     });
     efsLocation.node.addDependency(elasticFileSys);
     efsLocation.node.addDependency(efsBesuDirAccessPoint);
     efsLocation.node.addDependency(custRsrcEfsMgmtLambdaExec);
 
-    let dataSyncTaskLogGroup=new awslogs.LogGroup(this, "AMB-CICD-Blog-DataSyncTaskLogGroup", {
+    let dataSyncTaskLogGroup = new awslogs.LogGroup(this, "AMB-CICD-Blog-DataSyncTaskLogGroup", {
       logGroupName: "AMB-CICD-Blog-DataSyncTaskLogGroup",
-      removalPolicy:cdk.RemovalPolicy.DESTROY
+      removalPolicy: cdk.RemovalPolicy.DESTROY
     });
     dataSyncTaskLogGroup.grantWrite(new iam.ServicePrincipal("datasync.amazonaws.com"));
-    
+
     let dataSyncTask = new datasync.CfnTask(this, "AMB-CICD-Blog-DataSyncTask", {
-      name:"AMB-CICD-Blog-DataSyncTask",
+      name: "AMB-CICD-Blog-DataSyncTask",
       sourceLocationArn: s3Location.attrLocationArn,
       destinationLocationArn: efsLocation.attrLocationArn,
-      includes:[
+      includes: [
         {
-          filterType:"SIMPLE_PATTERN",
-          value:"/config.toml|/dev.json"
+          filterType: "SIMPLE_PATTERN",
+          value: "/config.toml|/dev.json"
         }
       ],
       cloudWatchLogGroupArn: dataSyncTaskLogGroup.logGroupArn,
-      options:{
-        logLevel:"TRANSFER",
-        overwriteMode:"ALWAYS",
-        transferMode:"ALL",
-        verifyMode:"ONLY_FILES_TRANSFERRED",
-        posixPermissions:"NONE",
-        uid:"NONE",
-        gid:"NONE"
+      options: {
+        logLevel: "TRANSFER",
+        overwriteMode: "ALWAYS",
+        transferMode: "ALL",
+        verifyMode: "ONLY_FILES_TRANSFERRED",
+        posixPermissions: "NONE",
+        uid: "NONE",
+        gid: "NONE"
       }
     });
     dataSyncTask.node.addDependency(s3Location);
@@ -418,19 +428,19 @@ export class CdkStack extends cdk.Stack {
       handler: "index.handler",
       runtime: lambda.Runtime.NODEJS_18_X,
       description: "Lambda to move files from S3 to EFS via DataSync Task",
-      environment:{"STACK_REGION":region,"TASK_ARN":dataSyncTask.attrTaskArn},
+      environment: { "STACK_REGION": region, "TASK_ARN": dataSyncTask.attrTaskArn },
       functionName: "AMB-CICD-Blog-DataSyncTastExecOnEvent",
       timeout: cdk.Duration.seconds(600),
       role: customResourceLambdaRole
     });
-    
+
     //DataSync Task Execution Lambda function
     let lambdaDataSyncTastExecFuncOnComplete = new lambda.Function(this, "AMB-CICD-Blog-DataSyncTastExecOnComplete", {
       code: lambda.Code.fromAsset(path.join(__dirname, 'DataSyncTaskExec/OnComplete')),
       handler: "index.handler",
       runtime: lambda.Runtime.NODEJS_18_X,
       description: "Lambda to move files from S3 to EFS via DataSync Task",
-      environment:{"STACK_REGION":region,"TASK_ARN":dataSyncTask.attrTaskArn},
+      environment: { "STACK_REGION": region, "TASK_ARN": dataSyncTask.attrTaskArn },
       functionName: "AMB-CICD-Blog-DataSyncTastExecOnComplete",
       timeout: cdk.Duration.seconds(600),
       role: customResourceLambdaRole
@@ -490,65 +500,65 @@ export class CdkStack extends cdk.Stack {
         "/opt/besu/bin/besu --config-file=/mount/efs/config/config.toml --genesis-file=/mount/efs/config/dev.json --data-path=/mount/efs/devNode1/data"
       ],
       essential: true,
-      logging:ecs.LogDrivers.awsLogs({
+      logging: ecs.LogDrivers.awsLogs({
         streamPrefix: "ecs",
-        logGroup:new awslogs.LogGroup(this,"AMB-CICD-Blog-BesuNetworkLogGroup",{
-          logGroupName:"/ecs/besudevnetwork",
-          removalPolicy:cdk.RemovalPolicy.DESTROY,
+        logGroup: new awslogs.LogGroup(this, "AMB-CICD-Blog-BesuNetworkLogGroup", {
+          logGroupName: "/ecs/besudevnetwork",
+          removalPolicy: cdk.RemovalPolicy.DESTROY,
         })
       }),
       portMappings: [
         {
-          containerPort: 8545, 
+          containerPort: 8545,
           protocol: ecs.Protocol.TCP
         },
         {
-          containerPort: 8546, 
+          containerPort: 8546,
           protocol: ecs.Protocol.TCP
         },
         {
-          containerPort: 8547, 
+          containerPort: 8547,
           protocol: ecs.Protocol.TCP
         },
         {
-          containerPort: 9001, 
+          containerPort: 9001,
           protocol: ecs.Protocol.TCP
         },
         {
-          containerPort: 30303, 
+          containerPort: 30303,
           protocol: ecs.Protocol.TCP
         },
         {
-          containerPort: 9545, 
+          containerPort: 9545,
           protocol: ecs.Protocol.TCP
         },
         {
-          containerPort: 30303, 
+          containerPort: 30303,
           protocol: ecs.Protocol.UDP
         },
         {
-          containerPort: 9545, 
+          containerPort: 9545,
           protocol: ecs.Protocol.UDP
         },
       ],
     });
     besuNetworkContainDef.node.addDependency(besuNetworkTaskDef);
-    
+
     besuNetworkContainDef.addMountPoints(
       {
-        containerPath:"/mount/efs",
+        containerPath: "/mount/efs",
         readOnly: false,
-        sourceVolume:"EfsBesuNodeStorage"
+        sourceVolume: "EfsBesuNodeStorage"
       }
     )
-    
+
     //Besu node custom resource handler for OnEvent
     let lambdaBesuEcsTaskStartFuncOnEvent = new lambda.Function(this, "AMB-CICD-Blog-BesuEcsTaskStartOnEvent", {
       code: lambda.Code.fromAsset(path.join(__dirname, 'ECSTaskExec/OnEvent')),
       handler: "index.handler",
       runtime: lambda.Runtime.NODEJS_18_X,
       description: "Lambda to start Besu node on ecs and capture the container public ip",
-      environment:{"STACK_REGION":region,"TASK_DEF_ARN":besuNetworkTaskDef.taskDefinitionArn,"CLUSTER_NAME":besuNetworkCluster.clusterName,"TASK_SUBNETID":vpc.publicSubnets[0].subnetId,"SEC_GROUP_ID": secGroup.securityGroupId},
+      environment: { "STACK_REGION": region, "TASK_DEF_ARN": besuNetworkTaskDef.taskDefinitionArn, "CLUSTER_NAME": besuNetworkCluster.clusterName, "TASK_SUBNETID": vpc.publicSubnets[0].subnetId, "SEC_GROUP_ID": secGroup.securityGroupId },
       functionName: "AMB-CICD-Blog-BesuEcsTaskStartOnEvent",
       timeout: cdk.Duration.seconds(100),
       role: customResourceLambdaRole,
@@ -559,7 +569,7 @@ export class CdkStack extends cdk.Stack {
       handler: "index.handler",
       runtime: lambda.Runtime.NODEJS_18_X,
       description: "Lambda to start Besu node on ecs and capture the container public ip",
-      environment:{"STACK_REGION":region,"CLUSTER_NAME":besuNetworkCluster.clusterName},
+      environment: { "STACK_REGION": region, "CLUSTER_NAME": besuNetworkCluster.clusterName },
       functionName: "AMB-CICD-Blog-BesuEcsTaskStartOnComplete",
       timeout: cdk.Duration.seconds(100),
       role: customResourceLambdaRole,
@@ -580,49 +590,49 @@ export class CdkStack extends cdk.Stack {
 
     //Get the public ip of the container
     let besuNodePublicIp = custRsrcEcsTaskLambdaExec.getAttString("PublicIp");
-    let IPOutput = new cdk.CfnOutput(this, "BesuNodePublicIP", {value:besuNodePublicIp});
+    let IPOutput = new cdk.CfnOutput(this, "BesuNodePublicIP", { value: besuNodePublicIp });
 
     /*************************** Secret Manager ************************/
-    let secMgrSecrets=new secretsmanager.Secret(this, "AMB-CICD-Blog-Secrets", {
+    let secMgrSecrets = new secretsmanager.Secret(this, "AMB-CICD-Blog-Secrets", {
       secretName: "AMB-CICD-Blog-Secrets",
       description: "Captures all the secrets required by CodeBuild and ShareToWinLambda",
       removalPolicy: cdk.RemovalPolicy.DESTROY,
-      secretObjectValue:{
-        "/CodeBuild/BesuMnemonicString":cdk.SecretValue.unsafePlainText("discover urban bicycle bless elephant amazing knife comfort cousin brisk corn satoshi"),
-        "/CodeBuild/GeorliMnemonicString":cdk.SecretValue.unsafePlainText("To be entered"),
-        "/CodeBuild/MainnetMnemonicString":cdk.SecretValue.unsafePlainText("To be entered"),
-        "/CodeBuild/AccessKey":cdk.SecretValue.unsafePlainText("To be entered"),
-        "/CodeBuild/SecretKey":cdk.SecretValue.unsafePlainText("To be entered"),
-        "/CodeBuild/BillingTokenUrl":cdk.SecretValue.unsafePlainText("To be entered"),
+      secretObjectValue: {
+        "/CodeBuild/BesuMnemonicString": cdk.SecretValue.unsafePlainText("discover urban bicycle bless elephant amazing knife comfort cousin brisk corn satoshi"),
+        "/CodeBuild/GeorliMnemonicString": cdk.SecretValue.unsafePlainText("To be entered"),
+        "/CodeBuild/MainnetMnemonicString": cdk.SecretValue.unsafePlainText("To be entered"),
+        "/CodeBuild/AccessKey": cdk.SecretValue.unsafePlainText("To be entered"),
+        "/CodeBuild/SecretKey": cdk.SecretValue.unsafePlainText("To be entered"),
+        "/CodeBuild/BillingTokenUrl": cdk.SecretValue.unsafePlainText("To be entered"),
       }
     });
 
     /******************* ShareToWinLambda & API Gateway & DynamoDB Table ********************/
 
-    let ShareToWinDevDB=new dynamodb.Table(this, "AMB-CICD-Blog-ShareToWinDevDB", {
+    let ShareToWinDevDB = new dynamodb.Table(this, "AMB-CICD-Blog-ShareToWinDevDB", {
       tableName: "AMB-CICD-Blog-ShareToWinDevDB",
       partitionKey: { name: "AssetID", type: dynamodb.AttributeType.NUMBER },
       readCapacity: 1,
       writeCapacity: 1,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
-    
+
     let ShareToWinLambdaLayer = new lambda.LayerVersion(this, "AMB-CICD-Blog-ShareToWinLambdaLayer", {
-      code: lambda.Code.fromBucket(cicdBucket,"BlockchainDevLayer.zip"),
+      code: lambda.Code.fromBucket(cicdBucket, "BlockchainDevLayer.zip"),
       removalPolicy: cdk.RemovalPolicy.DESTROY
     });
     ShareToWinLambdaLayer.node.addDependency(s3fileDeploy);
-    
+
     let appLambdaShareToWinFunc = new lambda.Function(this, "AMB-CICD-Blog-ShareToWinLambda", {
-      code: lambda.Code.fromBucket(cicdBucket,"ShareToWinLambda.zip"),
+      code: lambda.Code.fromBucket(cicdBucket, "ShareToWinLambda.zip"),
       handler: "index.handler",
       runtime: lambda.Runtime.NODEJS_18_X,
       description: "ShareToWin Decentralized application middle tier logic in lambda",
-      environment:{"DYNAMODB_NAME":ShareToWinDevDB.tableName,"NETWORK_ENDPOINT":besuNodePublicIp,"CONTRACTADDRESS":"ToBeEntered","NODE_OPTIONS":"--experimental-fetch","SECRET_MGR_STR":secMgrSecrets.secretName},
+      environment: { "DYNAMODB_NAME": ShareToWinDevDB.tableName, "NETWORK_ENDPOINT": besuNodePublicIp, "CONTRACTADDRESS": "ToBeEntered", "NODE_OPTIONS": "--experimental-fetch", "SECRET_MGR_STR": secMgrSecrets.secretName },
       functionName: "AMB-CICD-Blog-ShareToWinLambda",
-      paramsAndSecrets:lambda.ParamsAndSecretsLayerVersion.fromVersion(lambda.ParamsAndSecretsVersions.V1_0_103),
-      layers:[ShareToWinLambdaLayer],
-      role:lambdaExecRole,
+      paramsAndSecrets: lambda.ParamsAndSecretsLayerVersion.fromVersion(lambda.ParamsAndSecretsVersions.V1_0_103),
+      layers: [ShareToWinLambdaLayer],
+      role: lambdaExecRole,
       timeout: cdk.Duration.seconds(180),
     });
     appLambdaShareToWinFunc.node.addDependency(ShareToWinLambdaLayer);
@@ -644,7 +654,7 @@ export class CdkStack extends cdk.Stack {
     });
 
     /************************ CodeCommit ********************/
-    let codeRepo=new codecommit.Repository(this, "AMB-CICD-Blog-CodeCommit", {
+    let codeRepo = new codecommit.Repository(this, "AMB-CICD-Blog-CodeCommit", {
       repositoryName: "AMB-CICD-Blog-ShareToWinCode",
       description: "Smart contract and Lambda code for the CI/CD blog",
       code: codecommit.Code.fromZipFile(path.join(__dirname, "../resources/ShareToWinCode/ShareToWinCode.zip"))
@@ -652,10 +662,10 @@ export class CdkStack extends cdk.Stack {
 
     /************************ CodeBuild ********************/
     //Besu build project
-    let codeBuiltBesuProject=new codebuild.PipelineProject(this, "AMB-CICD-Blog-SmartContract-DevEnvBuild", {
+    let codeBuiltBesuProject = new codebuild.PipelineProject(this, "AMB-CICD-Blog-SmartContract-DevEnvBuild", {
       projectName: "AMB-CICD-Blog-SmartContract-DevEnvBuild",
       description: "Builds the smart contract for the besu network",
-      buildSpec:codebuild.BuildSpec.fromAsset(path.join(__dirname, "../resources/StaticFiles/besubuildspec.yml")),
+      buildSpec: codebuild.BuildSpec.fromAsset(path.join(__dirname, "../resources/StaticFiles/besubuildspec.yml")),
       cache: codebuild.Cache.none(),
       environment: {
         buildImage: codebuild.LinuxBuildImage.STANDARD_5_0,
@@ -669,8 +679,8 @@ export class CdkStack extends cdk.Stack {
             value: secMgrSecrets.secretArn + ":/CodeBuild/BesuMnemonicString",
             type: codebuild.BuildEnvironmentVariableType.SECRETS_MANAGER
           },
-          "SHARETOWIN_DB_NAME":{
-            value:ShareToWinDevDB.tableName,
+          "SHARETOWIN_DB_NAME": {
+            value: ShareToWinDevDB.tableName,
             type: codebuild.BuildEnvironmentVariableType.PLAINTEXT
           },
           "SECRET_MGR_STR": {
@@ -684,21 +694,21 @@ export class CdkStack extends cdk.Stack {
         }
       },
       logging: {
-        cloudWatch:{
+        cloudWatch: {
           enabled: true,
           logGroup: new awslogs.LogGroup(this, "AMB-CICD-Blog-SmartContract-DevEnvBuildLogs", {
             logGroupName: "/codebuild/besubuiltlogs",
-            removalPolicy:cdk.RemovalPolicy.DESTROY
+            removalPolicy: cdk.RemovalPolicy.DESTROY
           })
         }
       },
-      role:codeBuildSrvRole
+      role: codeBuildSrvRole
     });
     //Goerli build project
-    let codeBuiltGoerliProject=new codebuild.PipelineProject(this, "AMB-CICD-Blog-SmartContract-TestEnvBuild", {
+    let codeBuiltGoerliProject = new codebuild.PipelineProject(this, "AMB-CICD-Blog-SmartContract-TestEnvBuild", {
       projectName: "AMB-CICD-Blog-SmartContract-TestEnvBuild",
       description: "Builds the smart contract for the Goerli network",
-      buildSpec:codebuild.BuildSpec.fromAsset(path.join(__dirname, "../resources/StaticFiles/goerlibuildspec.yml")),
+      buildSpec: codebuild.BuildSpec.fromAsset(path.join(__dirname, "../resources/StaticFiles/goerlibuildspec.yml")),
       cache: codebuild.Cache.none(),
       environment: {
         buildImage: codebuild.LinuxBuildImage.STANDARD_5_0,
@@ -719,20 +729,20 @@ export class CdkStack extends cdk.Stack {
         }
       },
       logging: {
-        cloudWatch:{
+        cloudWatch: {
           enabled: true,
           logGroup: new awslogs.LogGroup(this, "AMB-CICD-Blog-SmartContract-TestEnvBuildLogs", {
             logGroupName: "/codebuild/goerlibuiltlogs",
-            removalPolicy:cdk.RemovalPolicy.DESTROY
+            removalPolicy: cdk.RemovalPolicy.DESTROY
           })
         }
       },
-      role:codeBuildSrvRole
+      role: codeBuildSrvRole
     });
-    
+
     /************************ CodePipeline ********************/
     let sourceOutput = new codepipeline.Artifact('SourceArtifact');
-    let sourceAction=new codepipelineactions.CodeCommitSourceAction({
+    let sourceAction = new codepipelineactions.CodeCommitSourceAction({
       actionName: "AMB-CICD-Blog-CodeCommit-CodeSource",
       repository: codeRepo,
       branch: "main",
@@ -741,61 +751,61 @@ export class CdkStack extends cdk.Stack {
     });
 
     let devBuiltOutput = new codepipeline.Artifact('BuildDevArtifact');
-    let builtDevAction=new codepipelineactions.CodeBuildAction({
+    let builtDevAction = new codepipelineactions.CodeBuildAction({
       actionName: "AMB-CICD-Blog-CodeBuild-CompileDeployDev",
       input: sourceOutput,
       project: codeBuiltBesuProject,
       runOrder: 2,
       type: codepipelineactions.CodeBuildActionType.BUILD,
       outputs: [devBuiltOutput],
-      variablesNamespace:"BuildDevVariables"
+      variablesNamespace: "BuildDevVariables"
     });
-    let manualApprovalAction=new codepipelineactions.ManualApprovalAction({
+    let manualApprovalAction = new codepipelineactions.ManualApprovalAction({
       actionName: "AMB-CICD-Blog-CodePipeline-ManualApproval",
       runOrder: 3
     });
 
     let testBuiltOutput = new codepipeline.Artifact('BuildTestArtifact');
-    let builtTestAction=new codepipelineactions.CodeBuildAction({
+    let builtTestAction = new codepipelineactions.CodeBuildAction({
       actionName: "AMB-CICD-Blog-CodeBuild-CompileDeployTest",
       input: sourceOutput,
       project: codeBuiltGoerliProject,
       runOrder: 4,
       type: codepipelineactions.CodeBuildActionType.BUILD,
       outputs: [testBuiltOutput],
-      variablesNamespace:"BuildTesVariables"
+      variablesNamespace: "BuildTesVariables"
     });
 
-    let codePipelineDev=new codepipeline.Pipeline(this, "AMB-CICD-Blog-Dev-CodePipeline", {
+    let codePipelineDev = new codepipeline.Pipeline(this, "AMB-CICD-Blog-Dev-CodePipeline", {
       pipelineName: "AMB-CICD-Blog-Dev-CodePipeline",
       stages: [
         {
-          stageName:"CodeSource",
-          actions:[
+          stageName: "CodeSource",
+          actions: [
             sourceAction
           ]
         },
         {
-          stageName:"BuildDevDeploy",
-          actions:[
+          stageName: "BuildDevDeploy",
+          actions: [
             builtDevAction
           ]
         },
         {
-          stageName:"Approve",
-          actions:[
+          stageName: "Approve",
+          actions: [
             manualApprovalAction
           ]
         },
         {
-          stageName:"BuildTestDeploy",
-          actions:[
+          stageName: "BuildTestDeploy",
+          actions: [
             builtTestAction
           ]
         }
       ],
       artifactBucket: cicdBucket,
-      role:codePipelineSvcRole
+      role: codePipelineSvcRole
     });
     codePipelineDev.node.addDependency(appLambdaShareToWinFunc);
   }
