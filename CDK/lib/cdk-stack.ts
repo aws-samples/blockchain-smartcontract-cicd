@@ -354,9 +354,9 @@ export class CdkStack extends cdk.Stack {
     });
     custRsrcEfsMgmtLambdaExec.node.addDependency(elasticFileSys);
     /************************ S3 Bucket and supporting files for the CI/CD solution ********************/
-
+    let bucketName="amb-cicd-blog-s3bucket" + getUUID();
     let cicdBucket = new s3.Bucket(this, "AMB-CICD-Blog-S3Bucket", {
-      bucketName: "amb-cicd-blog-s3bucket" + getUUID(),
+      bucketName: bucketName,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
       autoDeleteObjects: true,
       versioned: true
@@ -690,6 +690,10 @@ export class CdkStack extends cdk.Stack {
           "AMB_HTTP_TOKEN_URL": {
             value: secMgrSecrets.secretArn + ":/CodeBuild/BillingTokenUrl",
             type: codebuild.BuildEnvironmentVariableType.SECRETS_MANAGER
+          },
+          "S3_BUCKET_NAME":{
+            value:bucketName,
+            type: codebuild.BuildEnvironmentVariableType.PLAINTEXT
           }
         }
       },
@@ -726,6 +730,10 @@ export class CdkStack extends cdk.Stack {
             value: secMgrSecrets.secretArn + ":/CodeBuild/GeorliMnemonicString",
             type: codebuild.BuildEnvironmentVariableType.SECRETS_MANAGER
           },
+          "S3_BUCKET_NAME":{
+            value:bucketName,
+            type: codebuild.BuildEnvironmentVariableType.PLAINTEXT
+          }
         }
       },
       logging: {

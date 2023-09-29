@@ -25,8 +25,8 @@ phases:
       - npm install --loglevel=error --save-dev @ethersproject/abi@5.7.0
       - npm install --loglevel=error --save-dev @ethersproject/providers@5.7.2
       - npm install --loglevel=error --save-dev typechain@8.2.0
-      - aws s3 cp s3://amb-cicd-blog-s3bucket/deploy.js .
-      - aws s3 cp s3://amb-cicd-blog-s3bucket/hardhat.config.js .
+      - aws s3 cp s3://$S3_BUCKET_NAME/deploy.js .
+      - aws s3 cp s3://$S3_BUCKET_NAME/hardhat.config.js .
       - chmod +x deploy.js
       - chmod +x hardhat.config.js
       - npx hardhat compile
