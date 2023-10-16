@@ -87,7 +87,7 @@ let secMgrSecrets=new secretsmanager.Secret(this, "AMB-CICD-Blog-Secrets", {
 1. Clone this repository to get the cdk stack locally on your computer
 
 ```console
-git clone https://github.com/amazonrafia/Ethereum-CICD-Blog.git
+git clone https://github.com/aws-samples/blockchain-smartcontract-cicd.git
 ```
 2. Go to CDK folder
 ```console
